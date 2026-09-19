@@ -1,0 +1,40 @@
+# Sample OSSIE YAML — replace with real output from your GUI once ready.
+# Keep this file around as a smoke-test fixture for the pipeline.
+
+entities:
+  - name: sales
+    source_table: FMCG_DB.PUBLIC.SALES_FACT
+    columns:
+      - name: order_id
+        type: string
+      - name: order_date
+        type: date
+      - name: revenue
+        type: number
+      - name: region_id
+        type: string
+
+  - name: region
+    source_table: FMCG_DB.PUBLIC.DIM_REGION
+    columns:
+      - name: region_id
+        type: string
+      - name: region_name
+        type: string
+
+relationships:
+  - from: sales.region_id
+    to: region.region_id
+    type: many_to_one
+
+measures:
+  - name: total_revenue
+    entity: sales
+    expression: SUM(revenue)
+  - name: order_count
+    entity: sales
+    expression: COUNT(order_id)
+
+annotations:
+  owner: data-analytics-team
+  version: 0.1.0

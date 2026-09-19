@@ -1,0 +1,72 @@
+name: Generate and Deploy Semantic Models
+
+# Step 7 + Step 10: fires automatically once a PR is merged to main
+# (no manual trigger needed). Generates TMDL for Power BI + pushes it to
+# fabric-semantic-models, and deploys the semantic view straight to
+# Snowflake.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ossie/**.yaml"
+      - "ossie/**.yml"
+
+jobs:
+  generate-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout OSSIE repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # --- Step 7: generate downstream artifacts ------------------------
+      - name: Generate TMDL files for Power BI
+        run: python scripts/generate_tmdl.py --input ossie/ --output build/tmdl/ --multi-file
+
+      # --- Step 10: deploy the semantic view straight to Snowflake ------
+      - name: Deploy semantic view to Snowflake
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+        run: python scripts/deploy_snowflake_semantic_view.py --yaml-dir ossie/
+
+      # --- Push generated TMDL to the Power BI repo ---------------------
+      - name: Push TMDL to fabric-semantic-models
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_PAT }}
+        run: |
+          if [ -z "$(ls -A build/tmdl 2>/dev/null)" ]; then
+            echo "No TMDL output yet (generate_tmdl.py not wired up) - skipping push."
+            exit 0
+          fi
+          git clone https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/fabric-semantic-models.git downstream-fabric
+          cp -r build/tmdl/* downstream-fabric/
+          cd downstream-fabric
+          git config user.name "ossie-bot"
+          git config user.email "ossie-bot@snapanalytics.co.in"
+          git add .
+          git diff --cached --quiet && echo "No TMDL changes" || git commit -m "Auto-update TMDL from OSSIE YAML (${{ github.sha }})"
+          git push
+
+      # --- Optional: refresh the Power BI dataset once TMDL is live -----
+      # Uncomment once POWERBI_CLIENT_ID / POWERBI_CLIENT_SECRET /
+      # POWERBI_TENANT_ID / POWERBI_WORKSPACE_ID secrets are set.
+      #
+      # - name: Trigger Power BI dataset refresh
+      #   env:
+      #     POWERBI_CLIENT_ID: ${{ secrets.POWERBI_CLIENT_ID }}
+      #     POWERBI_CLIENT_SECRET: ${{ secrets.POWERBI_CLIENT_SECRET }}
+      #     POWERBI_TENANT_ID: ${{ secrets.POWERBI_TENANT_ID }}
+      #     POWERBI_WORKSPACE_ID: ${{ secrets.POWERBI_WORKSPACE_ID }}
+      #   run: python scripts/refresh_powerbi_dataset.py
