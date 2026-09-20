@@ -29,11 +29,9 @@ jobs:
       - name: Validate OSSIE YAML structure
         run: python scripts/validate_ossie_yaml.py ossie/
 
-      - name: Snowflake structural check (verify-only)
-        env:
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
-          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-        run: python scripts/deploy_snowflake_semantic_view.py --yaml-dir ossie/ --verify-only
+      # NOTE: SYSTEM$CREATE_SEMANTIC_VIEW_FROM_OSSIE_YAML does not document a
+      # verify-only / dry-run mode, so there is no live Snowflake check here -
+      # this job is structural validation only. The first real check against
+      # Snowflake happens in deploy.yml, after merge. If you want a pre-merge
+      # Snowflake-side check, the option is to deploy to a scratch/dev schema
+      # here and compare/drop it, rather than a true dry run.
