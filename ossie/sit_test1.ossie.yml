@@ -1,7 +1,7 @@
 version: 0.1.1
 semantic_model:
   - name: SIT_TEST1
-    description: Semantic View created for testing the OSSIE YAML setup.
+    description: Semantic View created for testing the OSSIE YAML setup and CI/CD validation workflow.
     datasets:
       - name: CUSTOMER
         source: SIT.COMPASS.CUSTOMER
