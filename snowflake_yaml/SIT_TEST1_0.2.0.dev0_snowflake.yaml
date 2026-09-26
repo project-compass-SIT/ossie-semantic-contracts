@@ -96,5 +96,8 @@ metrics:
   expr: SUM(orders.o_totalprice)
   description: The sum of o_totalprice field from the ORDERS table.
 - name: TOTAL_QUANTITY
-  expr: AVG(lineitem.l_quantity)
+  expr: SUM(lineitem.l_quantity)
   description: The sum of the l_quantity field in the LINEITEM table.
+- name: AVG_QUANTITY
+  expr: AVG(lineitem.l_quantity)
+  description: The average of the l_quantity field in the LINEITEM table.
