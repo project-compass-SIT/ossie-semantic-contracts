@@ -1,0 +1,214 @@
+version: 0.2.0.dev0
+name: SIT_TEST1
+description: Semantic View created for testing the OSSIE YAML setup.
+datasets:
+  - name: CUSTOMER
+    source: SIT.COMPASS.CUSTOMER
+    primary_key:
+      - C_CUSTKEY
+    fields:
+      - name: C_CUSTKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: C_CUSTKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: C_NAME
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: C_NAME
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: C_NATIONKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: C_NATIONKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+  - name: LINEITEM
+    source: SIT.COMPASS.LINEITEM
+    fields:
+      - name: L_LINENUMBER
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: L_LINENUMBER
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: L_LINESTATUS
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: L_LINESTATUS
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: L_ORDERKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: L_ORDERKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: L_EXTENDEDPRICE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: L_EXTENDEDPRICE
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: L_QUANTITY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: L_QUANTITY
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+  - name: NATION
+    source: SIT.COMPASS.NATION
+    primary_key:
+      - N_NATIONKEY
+    fields:
+      - name: N_NAME
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: N_NAME
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: N_NATIONKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: N_NATIONKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: N_REGIONKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: N_REGIONKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+  - name: ORDERS
+    source: SIT.COMPASS.ORDERS
+    primary_key:
+      - O_ORDERKEY
+    fields:
+      - name: O_CUSTKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: O_CUSTKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: O_ORDERKEY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: O_ORDERKEY
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: O_ORDERSTATUS
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: O_ORDERSTATUS
+        dimension: {}
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: O_ORDERDATE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: O_ORDERDATE
+        dimension:
+          is_time: true
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+      - name: O_TOTALPRICE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: O_TOTALPRICE
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: "{\"access_modifier\":\"public_access\"}"
+relationships:
+  - name: CUSTOMER_TO_NATION
+    from: CUSTOMER
+    to: NATION
+    from_columns:
+      - C_NATIONKEY
+    to_columns:
+      - N_NATIONKEY
+  - name: LINEITEM_TO_ORDERS
+    from: LINEITEM
+    to: ORDERS
+    from_columns:
+      - L_ORDERKEY
+    to_columns:
+      - O_ORDERKEY
+  - name: ORDERS_TO_CUSTOMER
+    from: ORDERS
+    to: CUSTOMER
+    from_columns:
+      - O_CUSTKEY
+    to_columns:
+      - C_CUSTKEY
+metrics:
+  - name: AVERAGE_PRICE_PER_UNIT
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: TOTAL_PRICE / TOTAL_QUANTITY
+    description: The TOTAL_PRICE metric divided by TOTAL_QUANTITY.
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: "{\"access_modifier\":\"public_access\"}"
+  - name: TOTAL_PRICE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(orders.o_totalprice)
+    description: The sum of o_totalprice field from the ORDERS table.
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: "{\"access_modifier\":\"public_access\"}"
+  - name: TOTAL_QUANTITY
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: AVG(lineitem.l_quantity)
+    description: The sum of the l_quantity field in the LINEITEM table.
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: "{\"access_modifier\":\"public_access\"}"
