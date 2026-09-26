@@ -1,0 +1,100 @@
+name: SIT_TEST1
+description: Semantic View created for testing the OSSIE YAML setup.
+tables:
+- name: CUSTOMER
+  base_table:
+    database: SIT
+    schema: COMPASS
+    table: CUSTOMER
+  primary_key:
+    columns:
+    - C_CUSTKEY
+  dimensions:
+  - name: C_CUSTKEY
+    expr: C_CUSTKEY
+  - name: C_NAME
+    expr: C_NAME
+  - name: C_NATIONKEY
+    expr: C_NATIONKEY
+- name: LINEITEM
+  base_table:
+    database: SIT
+    schema: COMPASS
+    table: LINEITEM
+  dimensions:
+  - name: L_LINENUMBER
+    expr: L_LINENUMBER
+  - name: L_LINESTATUS
+    expr: L_LINESTATUS
+  - name: L_ORDERKEY
+    expr: L_ORDERKEY
+  facts:
+  - name: L_EXTENDEDPRICE
+    expr: L_EXTENDEDPRICE
+  - name: L_QUANTITY
+    expr: L_QUANTITY
+- name: NATION
+  base_table:
+    database: SIT
+    schema: COMPASS
+    table: NATION
+  primary_key:
+    columns:
+    - N_NATIONKEY
+  dimensions:
+  - name: N_NAME
+    expr: N_NAME
+  - name: N_NATIONKEY
+    expr: N_NATIONKEY
+  - name: N_REGIONKEY
+    expr: N_REGIONKEY
+- name: ORDERS
+  base_table:
+    database: SIT
+    schema: COMPASS
+    table: ORDERS
+  primary_key:
+    columns:
+    - O_ORDERKEY
+  dimensions:
+  - name: O_CUSTKEY
+    expr: O_CUSTKEY
+  - name: O_ORDERKEY
+    expr: O_ORDERKEY
+  - name: O_ORDERSTATUS
+    expr: O_ORDERSTATUS
+  time_dimensions:
+  - name: O_ORDERDATE
+    expr: O_ORDERDATE
+  facts:
+  - name: O_TOTALPRICE
+    expr: O_TOTALPRICE
+relationships:
+- name: CUSTOMER_TO_NATION
+  left_table: CUSTOMER
+  right_table: NATION
+  relationship_columns:
+  - left_column: C_NATIONKEY
+    right_column: N_NATIONKEY
+- name: LINEITEM_TO_ORDERS
+  left_table: LINEITEM
+  right_table: ORDERS
+  relationship_columns:
+  - left_column: L_ORDERKEY
+    right_column: O_ORDERKEY
+- name: ORDERS_TO_CUSTOMER
+  left_table: ORDERS
+  right_table: CUSTOMER
+  relationship_columns:
+  - left_column: O_CUSTKEY
+    right_column: C_CUSTKEY
+metrics:
+- name: AVERAGE_PRICE_PER_UNIT
+  expr: TOTAL_PRICE / TOTAL_QUANTITY
+  description: The TOTAL_PRICE metric divided by TOTAL_QUANTITY.
+- name: TOTAL_PRICE
+  expr: SUM(orders.o_totalprice)
+  description: The sum of o_totalprice field from the ORDERS table.
+- name: TOTAL_QUANTITY
+  expr: AVG(lineitem.l_quantity)
+  description: The sum of the l_quantity field in the LINEITEM table.
