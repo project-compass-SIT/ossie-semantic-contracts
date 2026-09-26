@@ -49,4 +49,3 @@ jobs:
           python scripts/snowflake/deploy_snowflake_semantic_view.py
           --yaml snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
           --target-schema SIT.COMPASS
-          --verify-only
