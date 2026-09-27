@@ -1,11 +1,12 @@
-name: Deploy Snowflake semantic view
+name: Convert and deploy SIT_TEST1
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'semantic_views/sit_test1.yaml'
+      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie_yaml.yaml'
+      - 'scripts/snowflake/converter.py'
       - 'scripts/snowflake/deploy_snowflake_semantic_view.py'
       - 'requirements-deploy.txt'
       - '.github/workflows/deploy-semantic-view.yml'
@@ -15,12 +16,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: snowflake-semantic-view-sit
+  group: sit-test1-semantic-view
   cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: sit
     timeout-minutes: 15
 
@@ -44,7 +45,14 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements-deploy.txt
 
-      - name: Verify and deploy semantic view
+      - name: Convert Ossie YAML
+        run: |
+          python scripts/snowflake/converter.py \
+            -i ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie_yaml.yaml \
+            -o snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+          test -s snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+
+      - name: Verify and deploy generated YAML
         run: >
           python scripts/snowflake/deploy_snowflake_semantic_view.py
           --yaml snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
