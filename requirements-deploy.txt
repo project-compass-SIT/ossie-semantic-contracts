@@ -1,1 +1,2 @@
+PyYAML
 snowflake-connector-python>=3.17.0,<5
