@@ -1,4 +1,4 @@
-name: Convert and deploy SIT_TEST1
+name: Convert and Deploy Snowflake Semantic View YAML
 
 on:
   workflow_dispatch:
