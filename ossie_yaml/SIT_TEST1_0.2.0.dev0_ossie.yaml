@@ -211,4 +211,4 @@ metrics:
     description: The sum of the l_quantity field in the LINEITEM table.
     custom_extensions:
       - vendor_name: SNOWFLAKE
-        data: "{\"access_modifier\":\"public_access\"}"
+        data: "{\"access_modifier\":\"public_access\"} "
