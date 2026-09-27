@@ -1,18 +1,18 @@
 name: Convert and Deploy Snowflake Semantic View YAML
 
 on:
-  workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie_yaml.yaml'
+      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml'
       - 'scripts/snowflake/converter.py'
       - 'scripts/snowflake/deploy_snowflake_semantic_view.py'
       - 'requirements-deploy.txt'
       - '.github/workflows/deploy-semantic-view.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  convert-and-deploy:
     runs-on: ubuntu-24.04
     environment: sit
     timeout-minutes: 15
@@ -32,10 +32,11 @@ jobs:
       SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
 
     steps:
-      - name: Check out repository
+      - name: Check out main
         uses: actions/checkout@v5
         with:
-          persist-credentials: false
+          ref: main
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -48,9 +49,23 @@ jobs:
       - name: Convert Ossie YAML
         run: |
           python scripts/snowflake/converter.py \
-            -i ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie_yaml.yaml \
+            -i ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml \
             -o snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
           test -s snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+
+      - name: Commit generated YAML if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -- snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+
+          if git diff --cached --quiet; then
+            echo "Generated YAML is unchanged; nothing to commit."
+          else
+            git commit -m "Generate Snowflake YAML for SIT_TEST1"
+            git push origin HEAD:main
+          fi
 
       - name: Verify and deploy generated YAML
         run: >
