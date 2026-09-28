@@ -101,3 +101,6 @@ metrics:
 - name: AVG_QUANTITY
   expr: AVG(lineitem.l_quantity)
   description: The sum of the l_quantity field in the LINEITEM table.
+- name: AVG_PRICE
+  expr: AVG(orders.o_totalprice)
+  description: The avg of o_totalprice field from the ORDERS table.
