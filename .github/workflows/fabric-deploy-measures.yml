@@ -1,0 +1,70 @@
+name: Fabric deploy Ossie measures
+
+on:
+  workflow_dispatch:
+    inputs:
+      table:
+        description: Existing Power BI table name
+        required: true
+        type: string
+      measure:
+        description: Existing Power BI measure name to update
+        required: true
+        type: string
+      apply:
+        description: Update Fabric after the dry run succeeds
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # If your Entra federated credential is environment:sit, use:
+    # environment: sit
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Convert Ossie to TMSL strictly
+        working-directory: scripts/powerbi
+        run: |
+          uv sync
+          rm -f sit_test1_model.bim
+          uv run ossie-microsoft export \
+            -i ../../ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml \
+            -o sit_test1_model.bim \
+            --strict
+          test -s sit_test1_model.bim
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Merge approved measures and optionally deploy
+        env:
+          FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
+          FABRIC_SEMANTIC_MODEL_ID: ${{ vars.FABRIC_SEMANTIC_MODEL_ID }}
+          TABLE_NAME: ${{ inputs.table }}
+          MEASURE_NAME: ${{ inputs.measure }}
+          APPLY: ${{ inputs.apply }}
+        run: |
+          args=(
+            --candidate scripts/powerbi/sit_test1_model.bim
+            --table "$TABLE_NAME"
+            --measure "$MEASURE_NAME"
+          )
+          if [ "$APPLY" = "true" ]; then
+            args+=(--apply)
+          fi
+          python scripts/powerbi/scripts/deploy_fabric_measures.py "${args[@]}"
