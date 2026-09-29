@@ -10,6 +10,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import yaml
+
 BASE = "https://api.fabric.microsoft.com/v1"
 BACKUP = Path("fabric-definition-backup.json")
 PLAN = Path("fabric-update-plan.json")
@@ -30,9 +32,9 @@ def request(method, url, token, body=None):
     data = json.dumps(body).encode("utf-8") if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            raw = resp.read()
-            return resp.status, resp.headers, json.loads(raw) if raw else None
+        with urllib.request.urlopen(req, timeout=120) as response:
+            raw = response.read()
+            return response.status, response.headers, json.loads(raw) if raw else None
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         fail(f"Fabric HTTP {exc.code}: {detail[:2000]}")
@@ -116,23 +118,37 @@ def index_measures(bim):
         for measure in table.get("measures", []):
             name = measure["name"]
             if name in result:
-                fail(f"Ambiguous measure name {name!r}; assign unique names for automation")
+                fail(f"Ambiguous measure name {name!r}; give measures unique names for automation")
             result[name] = (table, measure)
     return result
+
+
+def ossie_metric_names(path):
+    document = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(document, dict) or not isinstance(document.get("metrics"), list):
+        fail("Ossie document must have a root-level metrics list")
+    names = []
+    for metric in document["metrics"]:
+        if not isinstance(metric, dict) or not isinstance(metric.get("name"), str) or not metric["name"].strip():
+            fail("An Ossie metric lacks a valid name")
+        names.append(metric["name"])
+    if len(set(names)) != len(names):
+        fail("Duplicate metric names in Ossie YAML")
+    return set(names)
 
 
 def table_columns(table):
     return {column["name"] for column in table.get("columns", [])}
 
 
-def build(candidate, live, home):
+def build(candidate, live, home, source_names, model_id):
     target = copy.deepcopy(live)
     generated_tables = index_tables(candidate)
     original_tables = index_tables(live)
     target_tables = index_tables(target)
     new_tables = sorted(set(generated_tables) - set(original_tables))
     if new_tables:
-        fail("New data tables require explicit source/partition configuration; not deploying: " + ", ".join(new_tables))
+        fail("New data tables need explicit source/partition configuration: " + ", ".join(new_tables))
     for name, table in generated_tables.items():
         missing = table_columns(table) - table_columns(original_tables[name])
         if missing:
@@ -140,28 +156,31 @@ def build(candidate, live, home):
     if home not in target_tables:
         fail(f"Create and publish the {home!r} measures table in Fabric first")
     candidate_measures = index_measures(candidate)
+    if set(candidate_measures) != source_names:
+        fail(f"Converter/YAML metric mismatch; missing={sorted(source_names - set(candidate_measures))}, extra={sorted(set(candidate_measures) - source_names)}")
+    for _, generated in candidate_measures.values():
+        valid_expression(generated)
     current_measures = index_measures(target)
-    if not candidate_measures:
-        fail("Candidate BIM contains no measures")
     changes = []
     for name, (_, generated) in sorted(candidate_measures.items()):
-        desired = valid_expression(generated)
+        desired = expression(generated["expression"])
         if name in current_measures:
             _, existing = current_measures[name]
             if expression(existing["expression"]) != desired:
                 existing["expression"] = copy.deepcopy(generated["expression"])
                 changes.append({"name": name, "action": "UPDATE", "expression": desired})
         else:
-            measure = {
+            new_measure = {
                 "name": name,
                 "expression": copy.deepcopy(generated["expression"]),
-                "lineageTag": str(uuid.uuid5(
-                    uuid.NAMESPACE_URL,
-                    f"fabric:{os.environ['FABRIC_SEMANTIC_MODEL_ID']}:ossie-measure:{name}",
-                )),
+                "lineageTag": str(uuid.uuid5(uuid.NAMESPACE_URL, f"fabric:{model_id}:ossie-measure:{name}")),
             }
-            target_tables[home].setdefault("measures", []).append(measure)
+            target_tables[home].setdefault("measures", []).append(new_measure)
             changes.append({"name": name, "action": "ADD", "expression": desired})
+    for name in sorted(set(current_measures) - source_names):
+        table, measure = current_measures[name]
+        table["measures"].remove(measure)
+        changes.append({"name": name, "action": "DELETE"})
     return target, changes
 
 
@@ -174,17 +193,17 @@ def encode_definition(original, merged):
     return result
 
 
-def assert_plan(backup, plan, home):
+def assert_plan(backup, plan, home, model_id):
     before = unpack(backup)
     after = unpack({"definition": plan["definition"]})
-    expected, changes = build(plan["candidate"], before, home)
+    expected, changes = build(plan["candidate"], before, home, set(plan["metricNames"]), model_id)
     if expected != after:
         fail("Prepared BIM changes exceed supported measure changes")
-    original_parts = {part["path"]: part for part in backup["definition"]["parts"]}
+    old_parts = {part["path"]: part for part in backup["definition"]["parts"]}
     new_parts = {part["path"]: part for part in plan["definition"]["parts"]}
-    if original_parts.keys() != new_parts.keys():
+    if old_parts.keys() != new_parts.keys():
         fail("Definition parts were added or removed")
-    if any(original_parts[key] != new_parts[key] for key in original_parts if key != "model.bim"):
+    if any(old_parts[key] != new_parts[key] for key in old_parts if key != "model.bim"):
         fail("Non-BIM definition part changed")
     return changes
 
@@ -193,6 +212,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--stage", choices=("prepare", "apply"), required=True)
     parser.add_argument("--candidate", type=Path)
+    parser.add_argument("--ossie-yaml", type=Path)
     args = parser.parse_args()
     workspace = os.environ["FABRIC_WORKSPACE_ID"]
     model_id = os.environ["FABRIC_SEMANTIC_MODEL_ID"]
@@ -200,16 +220,20 @@ def main():
     token = access_token()
 
     if args.stage == "prepare":
-        if not args.candidate:
-            fail("--candidate is required for prepare")
+        if not args.candidate or not args.ossie_yaml:
+            fail("--candidate and --ossie-yaml are required for prepare")
+        names = ossie_metric_names(args.ossie_yaml)
         candidate = json.loads(args.candidate.read_text(encoding="utf-8-sig"))
         before = get_definition(workspace, model_id, token)
-        live = unpack(before)
-        merged, changes = build(candidate, live, home)
+        merged, changes = build(candidate, unpack(before), home, names, model_id)
         if not changes:
             print("No measure differences; no update necessary")
             return
-        plan = {"workspace": workspace, "model": model_id, "home": home, "candidate": candidate, "definition": encode_definition(before, merged)}
+        plan = {
+            "workspace": workspace, "model": model_id, "home": home,
+            "metricNames": sorted(names), "candidate": candidate,
+            "definition": encode_definition(before, merged),
+        }
         BACKUP.write_text(json.dumps(before, ensure_ascii=False), encoding="utf-8")
         PLAN.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
         print("Planned: " + ", ".join(f"{item['action']} {item['name']}" for item in changes))
@@ -222,7 +246,7 @@ def main():
     plan = json.loads(PLAN.read_text(encoding="utf-8"))
     if plan["workspace"] != workspace or plan["model"] != model_id or plan["home"] != home:
         fail("Target or home table differs from prepared plan")
-    changes = assert_plan(backup, plan, home)
+    changes = assert_plan(backup, plan, home, model_id)
     if not changes:
         fail("Prepared plan contains no changes")
     latest = get_definition(workspace, model_id, token)
@@ -230,12 +254,15 @@ def main():
         fail("Live model changed since backup; refusing update")
     url = f"{BASE}/workspaces/{workspace}/semanticModels/{model_id}/updateDefinition"
     complete(*request("POST", url, token, {"definition": plan["definition"]}), token, False)
-    checked = get_definition(workspace, model_id, token)
-    found = index_measures(unpack(checked))
-    for item in changes:
-        if item["name"] not in found or expression(found[item["name"]][1]["expression"]) != item["expression"]:
-            fail(f"Read-back mismatch for {item['name']!r}")
-    print("Verified " + ", ".join(item["name"] for item in changes))
+    verified = index_measures(unpack(get_definition(workspace, model_id, token)))
+    for change in changes:
+        name = change["name"]
+        if change["action"] == "DELETE":
+            if name in verified:
+                fail(f"Read-back mismatch: deleted measure {name!r} still exists")
+        elif name not in verified or expression(verified[name][1]["expression"]) != change["expression"]:
+            fail(f"Read-back mismatch for measure {name!r}")
+    print("Verified " + ", ".join(f"{item['action']} {item['name']}" for item in changes))
 
 
 if __name__ == "__main__":
