@@ -95,3 +95,6 @@ metrics:
 - name: TOTAL_QUANTITY
   expr: SUM(lineitem.l_quantity)
   description: The sum of the l_quantity field in the LINEITEM table.
+- name: AVERAGE_PRICE_PER_UNIT
+  expr: TOTAL_PRICE / NULLIF(TOTAL_QUANTITY, 0)
+  description: Total price divided by total quantity.
