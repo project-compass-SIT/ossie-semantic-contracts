@@ -221,12 +221,3 @@ metrics:
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
-  - name: AVG_PRICE
-    expression:
-      dialects:
-        - dialect: SNOWFLAKE
-          expression: AVG(orders.o_totalprice)
-    description: The avg of o_totalprice field from the ORDERS table.
-    custom_extensions:
-      - vendor_name: SNOWFLAKE
-        data: "{\"access_modifier\":\"public_access\"}"
