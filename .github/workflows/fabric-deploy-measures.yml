@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      -      - name: Generate candidate TMSL from Ossie
+      - name: Generate candidate TMSL from Ossie
         working-directory: scripts/powerbi
         run: |
           uv sync
