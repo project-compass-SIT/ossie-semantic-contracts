@@ -152,7 +152,14 @@ def build(candidate, live, home):
                 existing["expression"] = copy.deepcopy(generated["expression"])
                 changes.append({"name": name, "action": "UPDATE", "expression": desired})
         else:
-            measure = {"name": name, "expression": copy.deepcopy(generated["expression"]), "lineageTag": str(uuid.uuid4())}
+            measure = {
+                "name": name,
+                "expression": copy.deepcopy(generated["expression"]),
+                "lineageTag": str(uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    f"fabric:{os.environ['FABRIC_SEMANTIC_MODEL_ID']}:ossie-measure:{name}",
+                )),
+            }
             target_tables[home].setdefault("measures", []).append(measure)
             changes.append({"name": name, "action": "ADD", "expression": desired})
     return target, changes
