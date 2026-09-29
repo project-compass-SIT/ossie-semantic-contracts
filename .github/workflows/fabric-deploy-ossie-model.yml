@@ -52,7 +52,8 @@ jobs:
         run: |
           python scripts/powerbi/scripts/deploy_fabric_ossie_model.py \
             --stage prepare \
-            --candidate scripts/powerbi/sit_test1_model.bim
+            --candidate scripts/powerbi/sit_test1_model.bim \
+            --ossie-yaml ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml
       - name: Check if an update is needed
         id: plan
         shell: bash
