@@ -95,6 +95,3 @@ metrics:
 - name: TOTAL_QUANTITY
   expr: SUM(lineitem.l_quantity)
   description: The sum of the l_quantity field in the LINEITEM table.
-- name: AVG_QUANTITY
-  expr: AVG(lineitem.l_quantity)
-  description: The average of the l_quantity field in the LINEITEM table.
