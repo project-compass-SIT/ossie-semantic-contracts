@@ -1,0 +1,103 @@
+name: Fabric read-definition smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  read-definition:
+    runs-on: ubuntu-latest
+    # If your Entra credential is for environment:sit, uncomment:
+    # environment: sit
+
+    steps:
+      - name: Sign in with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Get TMSL definition and back it up
+        shell: bash
+        env:
+          FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
+          FABRIC_SEMANTIC_MODEL_ID: ${{ vars.FABRIC_SEMANTIC_MODEL_ID }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = "https://api.fabric.microsoft.com/v1"
+          workspace = os.environ["FABRIC_WORKSPACE_ID"]
+          model = os.environ["FABRIC_SEMANTIC_MODEL_ID"]
+          token = subprocess.check_output(
+              ["az", "account", "get-access-token",
+               "--resource", "https://api.fabric.microsoft.com",
+               "--query", "accessToken", "-o", "tsv"],
+              text=True,
+          ).strip()
+
+          def request(method, url):
+              req = urllib.request.Request(
+                  url,
+                  method=method,
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/json"},
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as response:
+                      body = response.read()
+                      return response.status, dict(response.headers), (
+                          json.loads(body) if body else None
+                      )
+              except urllib.error.HTTPError as exc:
+                  detail = exc.read().decode("utf-8", errors="replace")
+                  raise RuntimeError(
+                      f"Fabric HTTP {exc.code}: {detail[:2000]}"
+                  ) from exc
+
+          url = (
+              f"{base}/workspaces/{workspace}/semanticModels/{model}"
+              "/getDefinition?format=TMSL"
+          )
+          status, headers, result = request("POST", url)
+
+          if status == 202:
+              operation_id = headers.get("x-ms-operation-id")
+              if not operation_id:
+                  raise RuntimeError("202 response lacked x-ms-operation-id")
+              state_url = f"{base}/operations/{operation_id}"
+              for _ in range(40):
+                  time.sleep(int(headers.get("Retry-After", "10")))
+                  _, headers, state = request("GET", state_url)
+                  if state and state.get("status") == "Succeeded":
+                      _, _, result = request("GET", state_url + "/result")
+                      break
+                  if state and state.get("status") in ("Failed", "Cancelled"):
+                      raise RuntimeError(f"Fabric operation failed: {state}")
+              else:
+                  raise TimeoutError("Fabric getDefinition did not complete")
+
+          if not result or "definition" not in result:
+              raise RuntimeError("No definition returned")
+
+          parts = result["definition"].get("parts", [])
+          paths = {part["path"] for part in parts}
+          if not {"model.bim", "definition.pbism"} <= paths:
+              raise RuntimeError(f"Expected TMSL parts missing; got {sorted(paths)}")
+
+          with open("fabric-definition-backup.json", "w", encoding="utf-8") as fh:
+              json.dump(result, fh, indent=2)
+
+          print(f"TMSL retrieval succeeded; {len(parts)} definition parts.")
+          print("Saved complete response to fabric-definition-backup.json")
+          PY
