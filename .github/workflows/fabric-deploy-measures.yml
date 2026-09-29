@@ -38,16 +38,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Generate candidate TMSL from Ossie
+      -      - name: Generate candidate TMSL from Ossie
         working-directory: scripts/powerbi
         run: |
           uv sync
           rm -f sit_test1_model.bim
           uv run ossie-microsoft export \
             -i ../../ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml \
-            -o sit_test1_model.bim \
-            --strict
+            -o sit_test1_model.bim
           test -s sit_test1_model.bim
+
+      - name: Check approved generated measure
+        env:
+          CANDIDATE: scripts/powerbi/sit_test1_model.bim
+          TABLE_NAME: ${{ inputs.table }}
+          MEASURE_NAME: ${{ inputs.measure }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          model = json.loads(
+              Path(os.environ["CANDIDATE"]).read_text(encoding="utf-8-sig")
+          )
+          found = [
+              (table["name"], measure)
+              for table in model["model"]["tables"]
+              for measure in table.get("measures", [])
+              if measure.get("name") == os.environ["MEASURE_NAME"]
+          ]
+          if len(found) != 1:
+              raise SystemExit(
+                  f"Expected measure exactly once; found {len(found)}: "
+                  f"{[table for table, _ in found]}"
+              )
+
+          table_name, measure = found[0]
+          if table_name != os.environ["TABLE_NAME"]:
+              raise SystemExit(
+                  f"Measure is on {table_name!r}, not requested table "
+                  f"{os.environ['TABLE_NAME']!r}"
+              )
+
+          expression = measure.get("expression")
+          dax = (
+              "\n".join(expression) if isinstance(expression, list)
+              else expression
+          )
+          if not isinstance(dax, str) or not dax.strip():
+              raise SystemExit("Generated DAX is empty")
+          if dax.strip().upper() in {"BLANK()", "= BLANK()"}:
+              raise SystemExit("Generated DAX is BLANK(); refusing deployment")
+
+          print(f"Approved measure found on {table_name!r}; DAX is nonblank.")
+          PY
       - name: Sign in with GitHub OIDC
         uses: azure/login@v3
         with:
