@@ -5,21 +5,12 @@ on:
     branches: [main]
     paths:
       - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml'
+      - 'scripts/powerbi/src/ossie_microsoft/**'
+      - 'scripts/powerbi/scripts/deploy_fabric_measures.py'
+      - 'scripts/powerbi/pyproject.toml'
+      - 'scripts/powerbi/uv.lock'
+      - '.github/workflows/fabric-deploy-measures.yml'
   workflow_dispatch:
-    inputs:
-      table:
-        description: Existing semantic model table name
-        required: true
-        type: string
-      measure:
-        description: Existing measure name on that table
-        required: true
-        type: string
-      apply:
-        description: Upload backup and update the semantic model
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
