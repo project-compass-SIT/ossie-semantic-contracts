@@ -1,6 +1,10 @@
 name: Fabric deploy one Ossie measure
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml'
   workflow_dispatch:
     inputs:
       table:
