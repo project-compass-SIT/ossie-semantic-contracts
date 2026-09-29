@@ -190,7 +190,7 @@ metrics:
       dialects:
         - dialect: SNOWFLAKE
           expression: TOTAL_PRICE / TOTAL_QUANTITY
-    description: The TOTAL_PRICE metric divided by TOTAL_QUANTITY
+    description: The TOTAL_PRICE metric divided by TOTAL_QUANTITY.
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
@@ -199,7 +199,7 @@ metrics:
       dialects:
         - dialect: SNOWFLAKE
           expression: SUM(orders.o_totalprice)
-    description: The sum of o_totalprice field from the ORDERS table
+    description: The sum of o_totalprice field from the ORDERS table.
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
@@ -208,7 +208,7 @@ metrics:
       dialects:
         - dialect: SNOWFLAKE
           expression: SUM(lineitem.l_quantity)
-    description: The sum of the l_quantity field in the LINEITEM table
+    description: The sum of the l_quantity field in the LINEITEM table.
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
@@ -217,7 +217,7 @@ metrics:
       dialects:
         - dialect: SNOWFLAKE
           expression: AVG(lineitem.l_quantity)
-    description: The sum of the l_quantity field in the LINEITEM table
+    description: The sum of the l_quantity field in the LINEITEM table.
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
@@ -226,7 +226,7 @@ metrics:
       dialects:
         - dialect: SNOWFLAKE
           expression: AVG(orders.o_totalprice)
-    description: The avg of o_totalprice field from the ORDERS table
+    description: The avg of o_totalprice field from the ORDERS table.
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
