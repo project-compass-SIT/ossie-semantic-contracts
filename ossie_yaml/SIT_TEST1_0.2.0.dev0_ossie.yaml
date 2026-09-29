@@ -185,15 +185,6 @@ relationships:
     to_columns:
       - C_CUSTKEY
 metrics:
-  - name: AVERAGE_PRICE_PER_UNIT
-    expression:
-      dialects:
-        - dialect: SNOWFLAKE
-          expression: TOTAL_PRICE / TOTAL_QUANTITY
-    description: The TOTAL_PRICE metric divided by TOTAL_QUANTITY.
-    custom_extensions:
-      - vendor_name: SNOWFLAKE
-        data: "{\"access_modifier\":\"public_access\"}"
   - name: TOTAL_PRICE
     expression:
       dialects:
