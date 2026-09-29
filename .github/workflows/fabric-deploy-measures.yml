@@ -1,18 +1,18 @@
-name: Fabric deploy Ossie measures
+name: Fabric deploy one Ossie measure
 
 on:
   workflow_dispatch:
     inputs:
       table:
-        description: Existing Power BI table name
+        description: Existing semantic model table name
         required: true
         type: string
       measure:
-        description: Existing Power BI measure name to update
+        description: Existing measure name on that table
         required: true
         type: string
       apply:
-        description: Update Fabric after the dry run succeeds
+        description: Upload backup and update the semantic model
         required: true
         default: false
         type: boolean
@@ -21,19 +21,24 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: fabric-semantic-model-mvp
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # If your Entra federated credential is environment:sit, use:
+    # If your successful Entra credential was scoped to environment:sit, uncomment:
     # environment: sit
-
+    env:
+      FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
+      FABRIC_SEMANTIC_MODEL_ID: ${{ vars.FABRIC_SEMANTIC_MODEL_ID }}
+      TABLE_NAME: ${{ inputs.table }}
+      MEASURE_NAME: ${{ inputs.measure }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Convert Ossie to TMSL strictly
+      - uses: astral-sh/setup-uv@v6
+      - name: Generate candidate TMSL from Ossie
         working-directory: scripts/powerbi
         run: |
           uv sync
@@ -43,28 +48,29 @@ jobs:
             -o sit_test1_model.bim \
             --strict
           test -s sit_test1_model.bim
-
-      - name: Sign in to Azure with GitHub OIDC
+      - name: Sign in with GitHub OIDC
         uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
-
-      - name: Merge approved measures and optionally deploy
-        env:
-          FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
-          FABRIC_SEMANTIC_MODEL_ID: ${{ vars.FABRIC_SEMANTIC_MODEL_ID }}
-          TABLE_NAME: ${{ inputs.table }}
-          MEASURE_NAME: ${{ inputs.measure }}
-          APPLY: ${{ inputs.apply }}
+      - name: Prepare and review targeted update
         run: |
-          args=(
-            --candidate scripts/powerbi/sit_test1_model.bim
-            --table "$TABLE_NAME"
-            --measure "$MEASURE_NAME"
-          )
-          if [ "$APPLY" = "true" ]; then
-            args+=(--apply)
-          fi
-          python scripts/powerbi/scripts/deploy_fabric_measures.py "${args[@]}"
+          python scripts/powerbi/scripts/deploy_fabric_measures.py \
+            --candidate scripts/powerbi/sit_test1_model.bim \
+            --table "$TABLE_NAME" --measure "$MEASURE_NAME" --stage prepare
+      - name: Upload pre-update backup
+        if: ${{ inputs.apply }}
+        id: backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-tmsl-before-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fabric-definition-backup.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Apply after successful backup upload
+        if: ${{ inputs.apply && steps.backup.outcome == 'success' }}
+        run: |
+          python scripts/powerbi/scripts/deploy_fabric_measures.py \
+            --candidate scripts/powerbi/sit_test1_model.bim \
+            --table "$TABLE_NAME" --measure "$MEASURE_NAME" --stage apply
