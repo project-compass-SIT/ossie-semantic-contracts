@@ -1,0 +1,76 @@
+name: Fabric deploy Ossie semantic model
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml'
+      - 'scripts/powerbi/src/ossie_microsoft/**'
+      - 'scripts/powerbi/scripts/deploy_fabric_ossie_model.py'
+      - 'scripts/powerbi/pyproject.toml'
+      - 'scripts/powerbi/uv.lock'
+      - '.github/workflows/fabric-deploy-ossie-model.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: fabric-ossie-${{ vars.FABRIC_SEMANTIC_MODEL_ID }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Uncomment if the Entra federated credential is scoped to environment:sit.
+    # environment: sit
+    env:
+      FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
+      FABRIC_SEMANTIC_MODEL_ID: ${{ vars.FABRIC_SEMANTIC_MODEL_ID }}
+      FABRIC_MEASURES_TABLE: OSSIE_MEASURES
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Convert Ossie to candidate TMSL
+        working-directory: scripts/powerbi
+        run: |
+          set -euo pipefail
+          uv sync
+          rm -f sit_test1_model.bim
+          uv run ossie-microsoft export \
+            -i ../../ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml \
+            -o sit_test1_model.bim
+          test -s sit_test1_model.bim
+      - name: Sign in with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Prepare all measure changes and backup
+        run: |
+          python scripts/powerbi/scripts/deploy_fabric_ossie_model.py \
+            --stage prepare \
+            --candidate scripts/powerbi/sit_test1_model.bim
+      - name: Check if an update is needed
+        id: plan
+        shell: bash
+        run: |
+          if [ -s fabric-definition-backup.json ] && [ -s fabric-update-plan.json ]; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload pre-update definition
+        if: ${{ steps.plan.outputs.changed == 'true' }}
+        id: backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-tmsl-before-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fabric-definition-backup.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Apply only after backup upload
+        if: ${{ steps.plan.outputs.changed == 'true' && steps.backup.outcome == 'success' }}
+        run: python scripts/powerbi/scripts/deploy_fabric_ossie_model.py --stage apply
