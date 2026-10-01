@@ -1,4 +1,4 @@
-name: Convert and Deploy Snowflake Semantic View YAML
+name: Deploy - Snowflake Ossie Semantic View
 
 on:
   push:
