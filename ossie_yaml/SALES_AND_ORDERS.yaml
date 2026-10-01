@@ -212,14 +212,3 @@ metrics:
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
-  - name: AVERAGE_PRICE_PER_UNIT
-    expression:
-      dialects:
-        - dialect: SNOWFLAKE
-          expression: TOTAL_PRICE / NULLIF(TOTAL_QUANTITY, 0)
-        - dialect: DAX
-          expression: DIVIDE([TOTAL_PRICE], [TOTAL_QUANTITY])
-    description: Total price divided by total quantity, to track the average price per unit of quantity.
-    custom_extensions:
-      - vendor_name: SNOWFLAKE
-        data: "{\"access_modifier\":\"public_access\"}"
