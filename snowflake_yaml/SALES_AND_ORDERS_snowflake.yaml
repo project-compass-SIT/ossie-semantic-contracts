@@ -99,3 +99,6 @@ metrics:
 - name: AVG_PRICE
   expr: SUM(orders.o_totalprice)
   description: The average of o_totalprice field from the ORDERS table
+- name: AVERAGE_PRICE_PER_UNIT
+  expr: TOTAL_PRICE / NULLIF(TOTAL_QUANTITY, 0)
+  description: The sum of the l_quantity field in the LINEITEM table
