@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml'
+      - 'ossie_yaml/SALES_AND_ORDERS.yaml'
       - 'scripts/powerbi/src/ossie_microsoft/**'
       - 'scripts/powerbi/scripts/deploy_fabric_ossie_model.py'
       - 'scripts/powerbi/pyproject.toml'
