@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml'
+      - 'ossie_yaml/SALES_AND_ORDERS.yaml'
       - 'scripts/snowflake/converter.py'
       - 'scripts/snowflake/deploy_snowflake_semantic_view.py'
       - 'requirements-deploy.txt'
@@ -49,16 +49,16 @@ jobs:
       - name: Convert Ossie YAML
         run: |
           python scripts/snowflake/converter.py \
-            -i ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml \
-            -o snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
-          test -s snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+            -i ossie_yaml/SALES_AND_ORDERS.yaml \
+            -o snowflake_yaml/SALES_AND_ORDERS_snowflake.yaml
+          test -s snowflake_yaml/SALES_AND_ORDERS_snowflake.yaml
 
       - name: Commit generated YAML if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add -- snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+          git add -- snowflake_yaml/SALES_AND_ORDERS_snowflake.yaml
 
           if git diff --cached --quiet; then
             echo "Generated YAML is unchanged; nothing to commit."
@@ -70,5 +70,5 @@ jobs:
       - name: Verify and deploy generated YAML
         run: >
           python scripts/snowflake/deploy_snowflake_semantic_view.py
-          --yaml snowflake_yaml/SIT_TEST1_0.2.0.dev0_snowflake.yaml
+          --yaml snowflake_yaml/SALES_AND_ORDERS_snowflake.yaml
           --target-schema SIT.COMPASS
