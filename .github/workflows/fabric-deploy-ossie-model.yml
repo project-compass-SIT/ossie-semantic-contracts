@@ -39,7 +39,7 @@ jobs:
           uv sync
           rm -f sit_test1_model.bim
           uv run ossie-microsoft export \
-            -i ../../ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml \
+            -i ../../ossie_yaml/SALES_AND_ORDERS.yaml \
             -o sit_test1_model.bim
           test -s sit_test1_model.bim
       - name: Sign in with GitHub OIDC
@@ -53,7 +53,7 @@ jobs:
           python scripts/powerbi/scripts/deploy_fabric_ossie_model.py \
             --stage prepare \
             --candidate scripts/powerbi/sit_test1_model.bim \
-            --ossie-yaml ossie_yaml/SIT_TEST1_0.2.0.dev0_ossie.yaml
+            --ossie-yaml ossie_yaml/SALES_AND_ORDERS.yaml
       - name: Check if an update is needed
         id: plan
         shell: bash
