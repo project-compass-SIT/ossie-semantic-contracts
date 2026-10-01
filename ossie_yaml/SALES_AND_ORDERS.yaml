@@ -198,7 +198,9 @@ metrics:
     expression:
       dialects:
         - dialect: SNOWFLAKE
-          expression: AVG(lineitem.l_quantity)
+          expression: SUM(LINEITEM.L_QUANTITY)
+        - dialect: DAX
+          expression: SUM(LINEITEM[l_quantity])
     description: The sum of the l_quantity field in the LINEITEM table
     custom_extensions:
       - vendor_name: SNOWFLAKE
