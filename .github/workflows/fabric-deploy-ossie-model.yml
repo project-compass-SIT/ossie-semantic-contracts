@@ -37,11 +37,11 @@ jobs:
         run: |
           set -euo pipefail
           uv sync
-          rm -f sit_test1_model.bim
+          rm -f sales_and_orders_model.bim
           uv run ossie-microsoft export \
             -i ../../ossie_yaml/SALES_AND_ORDERS.yaml \
-            -o sit_test1_model.bim
-          test -s sit_test1_model.bim
+            -o sales_and_orders_model.bim
+          test -s sales_and_orders_model.bim
       - name: Sign in with GitHub OIDC
         uses: azure/login@v3
         with:
@@ -52,7 +52,7 @@ jobs:
         run: |
           python scripts/powerbi/scripts/deploy_fabric_ossie_model.py \
             --stage prepare \
-            --candidate scripts/powerbi/sit_test1_model.bim \
+            --candidate scripts/powerbi/sales_and_orders_model.bim \
             --ossie-yaml ossie_yaml/SALES_AND_ORDERS.yaml
       - name: Check if an update is needed
         id: plan
