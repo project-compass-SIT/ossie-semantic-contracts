@@ -99,7 +99,3 @@ metrics:
 - name: AVG_PRICE
   expr: AVG(orders.o_totalprice)
   description: The average of o_totalprice field from the ORDERS table.
-- name: AVERAGE_PRICE_PER_UNIT
-  expr: TOTAL_PRICE / NULLIF(TOTAL_QUANTITY, 0)
-  description: Total price divided by total quantity, to track the average price per
-    unit of quantity.
