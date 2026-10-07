@@ -198,17 +198,19 @@ metrics:
     expression:
       dialects:
         - dialect: SNOWFLAKE
-          expression: AVG(LINEITEM.L_QUANTITY)
+          expression: SUM(LINEITEM.L_QUANTITY)
     description: The sum of the l_quantity field in the LINEITEM table.
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
-  - name: AVG_PRICE
+  - name: AVERAGE_PRICE_PER_UNIT
     expression:
       dialects:
         - dialect: SNOWFLAKE
-          expression: AVG(ORDERS.O_TOTALPRICE)
-    description: The avg of o_totalprice field from the ORDERS table.
+          expression: TOTAL_PRICE / NULLIF(TOTAL_QUANTITY, 0)
+        - dialect: DAX
+          expression: DIVIDE([TOTAL_PRICE], [TOTAL_QUANTITY])
+    description: Average price per unit
     custom_extensions:
       - vendor_name: SNOWFLAKE
         data: "{\"access_modifier\":\"public_access\"}"
